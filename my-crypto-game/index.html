@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>马斯克的Crypto狂欢：梭哈代币！</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #0b0e11;
+            color: #eaecef;
+            margin: 0;
+            padding: 0;
+        }
+        header {
+            background-color: #181a20;
+            padding: 30px;
+            text-align: center;
+            border-bottom: 1px solid #2b2f36;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        h1 { margin: 0; color: #f0b90b; font-size: 2em; }
+        #money-display {
+            font-size: 3.2em;
+            font-weight: bold;
+            color: #02c076;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+        #income-display { color: #929aa5; font-size: 1.1em; }
+        .container {
+            max-width: 1200px;
+            margin: 40px auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 25px;
+            padding: 0 20px;
+        }
+        .crypto-card {
+            background-color: #181a20;
+            border-radius: 12px;
+            padding: 25px;
+            border: 1px solid #2b2f36;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .crypto-card:hover { border-color: #f0b90b; }
+        .coin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .coin-name { font-size: 1.6em; font-weight: bold; color: #fff; }
+        .coin-price { font-size: 1.4em; color: #f0b90b; font-family: monospace; }
+        .coin-info { font-size: 0.9em; color: #929aa5; margin-bottom: 20px; line-height: 1.5; }
+        .input-group { display: flex; gap: 10px; margin-bottom: 15px; }
+        input {
+            flex: 1;
+            background-color: #24272e;
+            border: 1px solid #474d57;
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 1em;
+        }
+        input:focus { border-color: #f0b90b; outline: none; }
+        .btn {
+            padding: 10px 15px;
+            font-weight: bold;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-buy { background-color: #02c076; color: white; }
+        .btn-buy:hover { background-color: #03a666; }
+        .btn-all { background-color: #f0b90b; color: #000; }
+        .my-holding {
+            background-color: #202630;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 0.95em;
+            display: flex;
+            justify-content: space-between;
+        }
+        .holding-amount { color: #fff; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>模拟拥有马斯克的财富 —— 梭哈 Crypto 币圈版</h1>
+        <div id="money-display">$1,000,000,000,000</div>
+        <div id="income-display">正在联网获取最新实时币价... (资产被动收入: +$1,500/秒)</div>
+    </header>
+
+    <div class="container" id="crypto-container">
+        </div>
+
+<script>
+    // 1. 初始财富（1万亿美元）以及被动收入
+    let currentMoney = 1000000000000;
+    const passiveIncomePerSecond = 1500;
+
+    // 2. 代币基础配置信息（总量保留行业真实数据）
+    const coinsData = {
+        BTC: { name: "Bitcoin", total: "21,000,000", price: 0, owned: 0, api: "https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT" },
+        ETH: { name: "Ethereum", total: "120,400,000 (不设上限)", price: 0, owned: 0, api: "https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT" },
+        BNB: { name: "BNB", total: "145,900,000", price: 0, owned: 0, api: "https://api.binance.com/api/v3/ticker/price?symbol=BNBUSDT" },
+        OKB: { name: "OKB", total: "300,000,000", price: 0, owned: 0, api: "https://api.binance.com/api/v3/ticker/price?symbol=OKBUSDT" },
+        HYPE: { name: "Hyperliquid", total: "953,530,000", price: 0, owned: 0, api: "https://api.coingecko.com/api/v3/simple/price?ids=hyperliquid&vs_currencies=usd" }
+    };
+
+    // 3. 异步联网获取最新真实价格
+    async function fetchPrices() {
+        try {
+            // 获取币安 API 价格
+            for (let symbol of ['BTC', 'ETH', 'BNB', 'OKB']) {
+                const res = await fetch(coinsData[symbol].api);
+                const data = await res.json();
+                coinsData[symbol].price = parseFloat(data.price);
+            }
+            // 获取 HYPE 价格（因为Bybit/币安暂未全上其API，这里用Coingecko公开接口）
+            const resHype = await fetch(coinsData.HYPE.api);
+            const dataHype = await resHype.json();
+            coinsData.HYPE.price = dataHype.hyperliquid.usd;
+            
+            document.getElementById('income-display').innerText = "实时币价已同步！(资产被动收入: +$1,500/秒)";
+            renderCards();
+        } catch (error) {
+            console.error("价格获取失败，使用预设估算价", error);
+            // 兜底价格，防止API因网络问题请求失败
+            coinsData.BTC.price = 62000;
+            coinsData.ETH.price = 1750;
+            coinsData.BNB.price = 570;
+            coinsData.OKB.price = 38;
+            coinsData.HYPE.price = 71;
+            renderCards();
+        }
+    }
+
+    // 4. 动态渲染代币卡片
+    function renderCards() {
+        const container = document.getElementById('crypto-container');
+        container.innerHTML = '';
+
+        Object.keys(coinsData).forEach(symbol => {
+            const coin = coinsData[symbol];
+            const card = document.createElement('div');
+            card.className = 'crypto-card';
+            card.innerHTML = `
+                <div>
+                    <div class="coin-header">
+                        <span class="coin-name">${symbol}</span>
+                        <span class="coin-price">$${coin.price ? coin.price.toLocaleString(undefined, {minimumFractionDigits: 2}) : '加载中...'}</span>
+                    </div>
+                    <div class="coin-info">
+                        <strong>全网发行总量:</strong> ${coin.total}<br>
+                        <strong>全网总市值:</strong> $${coin.price ? (coin.price * parseFloat(coin.total.replace(/,/g, ''))).toLocaleString(undefined, {maximumFractionDigits: 0}) : '---'}
+                    </div>
+                </div>
+                <div>
+                    <div class="input-group">
+                        <input type="number" id="input-${symbol}" placeholder="输入购买数量" min="0" step="any">
+                        <button class="btn btn-buy" onclick="buyCoin('${symbol}')">购买</button>
+                        <button class="btn btn-all" onclick="buyAllIn('${symbol}')">全部买下</button>
+                    </div>
+                    <div class="my-holding">
+                        <span>已购得数量:</span>
+                        <span class="holding-amount" id="held-${symbol}">${coin.owned.toFixed(4)} ${symbol}</span>
+                    </div>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    // 5. 购买逻辑
+    function buyCoin(symbol) {
+        const coin = coinsData[symbol];
+        const inputVal = parseFloat(document.getElementById(`input-${symbol}`).value);
+        
+        if (isNaN(inputVal) || inputVal <= 0) {
+            alert("请输入有效的购买数量！");
+            return;
+        }
+
+        const totalCost = inputVal * coin.price;
+
+        if (currentMoney >= totalCost) {
+            currentMoney -= totalCost;
+            coin.owned += inputVal;
+            updateUI();
+            document.getElementById(`input-${symbol}`).value = ''; // 清空输入框
+        } else {
+            alert("马斯克的钱也不够你这么挥霍！降低点数量吧。");
+        }
+    }
+
+    // 6. 一键清空资产买断（All-In）逻辑
+    function buyAllIn(symbol) {
+        const coin = coinsData[symbol];
+        const maxAffordable = currentMoney / coin.price;
+        
+        if (maxAffordable <= 0) {
+            alert("你已经没钱了！");
+            return;
+        }
+
+        coin.owned += maxAffordable;
+        currentMoney = 0; // 金额直接归零（随后会被被动收入顶起来）
+        updateUI();
+    }
+
+    // 7. 更新金钱及持仓UI
+    function updateUI() {
+        document.getElementById('money-display').innerText = '$' + Math.floor(currentMoney).toLocaleString();
+        Object.keys(coinsData).forEach(symbol => {
+            const element = document.getElementById(`held-${symbol}`);
+            if (element) {
+                element.innerText = `${coinsData[symbol].owned.toLocaleString(undefined, {minimumFractionDigits: 4, maximumFractionDigits: 4})} ${symbol}`;
+            }
+        });
+    }
+
+    // 8. 实时跳动定时器（每 10 毫秒加一次被动收入）
+    setInterval(() => {
+        currentMoney += (passiveIncomePerSecond / 100);
+        updateUI();
+    }, 10);
+
+    // 9. 价格定时刷新器（每 15 秒重新全网抓取一次最新币价）
+    setInterval(fetchPrices, 15000);
+
+    // 网页加载时首次执行
+    fetchPrices();
+</script>
+</body>
+</html>
